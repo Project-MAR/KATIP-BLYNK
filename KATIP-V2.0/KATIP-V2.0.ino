@@ -74,6 +74,7 @@ void turnON()
   
   //digitalWrite(LED3_PIN, LOW);
   digitalWrite(LED2_PIN, LOW);
+  Blynk.virtualWrite(V0, HIGH);
 }
 
 void turnOFF()
@@ -86,23 +87,24 @@ void turnOFF()
   
   //digitalWrite(LED3_PIN, HIGH);
   digitalWrite(LED2_PIN, HIGH);
+  Blynk.virtualWrite(V0, LOW);
 }
 
 void togglRelay()
 {
   if(RelayStatus == Relay_ON)
   {
+    turnOFF();
     Blynk.virtualWrite(V0, LOW);
     Serial.println("Relay: OFF");
     RelayStatus = Relay_OFF;
-    turnOFF();
   }
   else
   {
+    turnON();
     Blynk.virtualWrite(V0, HIGH);
     Serial.println("Relay: ON");
     RelayStatus = Relay_ON;
-    turnON();
   }
   Serial.println("");
 }
@@ -113,15 +115,16 @@ BLYNK_WRITE(V0)
   int pinValue = param.asInt();
   if(pinValue == 1)
   {
+     turnON();
      Serial.println("[APP Event] Set Relay: ON");
      RelayStatus = Relay_ON;
-     turnON();
   }
   else
   {
+     turnOFF(); 
      Serial.println("[APP Event] Set Relay: OFF");
      RelayStatus = Relay_OFF;
-     turnOFF();    
+        
   }
 }
 
@@ -131,19 +134,15 @@ void myTimerEvent()
     currentSwitchState = digitalRead(Switch_PIN);
     if (currentSwitchState != lastSwitchState)
     {
+      togglRelay();
       if (currentSwitchState == Switch_ON)
       {
          Serial.println("[Manual Event] : Switch is ON");
-         RelayStatus = Relay_ON;
-         turnON();
       }
       else
       {
          Serial.println("[Manual Event] : Switch is OFF");
-         RelayStatus = Relay_OFF;
-         turnOFF();
       }
-      
       lastSwitchState = currentSwitchState;
     }
 }
@@ -171,7 +170,6 @@ void setup()
   pinMode(Switch_PIN, INPUT);
   currentSwitchState = digitalRead(Switch_PIN);
   lastSwitchState = currentSwitchState;
-   //= currentSwitchState;
 
   Serial.println();
   if(lastSwitchState == Switch_ON)
