@@ -42,10 +42,16 @@
 #include <BlynkSimpleEsp8266.h>
 #include "token.h"
 
+#define Relay_ON    1
+#define Relay_OFF   0
+
+#define Switch_ON   0
+#define Switch_OFF  1
+
 /* ---------- IO Define ----------------*/
 const int LED1_PIN = 5;
 const int LED2_PIN = 4;
-const int LED3_PIN = 0;
+//const int LED3_PIN = 0;
 
 const int RelayA_PIN = 2;
 const int RelayC_PIN = 14;
@@ -53,22 +59,50 @@ const int RelayC_PIN = 14;
 const int Switch_PIN = 10;
 /*---------------------------------------*/
 
-int LightStatus = 0;
+int RelayStatus = 0;
 
 int lastSwitchState    = 0;
 int currentSwitchState = 0;
 
-void toggleLight()
+void turnON()
 {
-  if(LightStatus == 0)
+  digitalWrite(RelayA_PIN, HIGH);
+  digitalWrite(RelayC_PIN, LOW);
+  delay(50);
+  digitalWrite(RelayA_PIN, LOW);
+  digitalWrite(RelayC_PIN, LOW);
+  
+  //digitalWrite(LED3_PIN, LOW);
+  digitalWrite(LED2_PIN, LOW);
+}
+
+void turnOFF()
+{
+  digitalWrite(RelayA_PIN, LOW);
+  digitalWrite(RelayC_PIN, HIGH);
+  delay(50);
+  digitalWrite(RelayA_PIN, LOW);
+  digitalWrite(RelayC_PIN, LOW);
+  
+  //digitalWrite(LED3_PIN, HIGH);
+  digitalWrite(LED2_PIN, HIGH);
+}
+
+void togglRelay()
+{
+  if(RelayStatus == Relay_ON)
   {
     Blynk.virtualWrite(V0, LOW);
-    Serial.println("SET Light => OFF");
+    Serial.println("Relay: OFF");
+    RelayStatus = Relay_OFF;
+    turnOFF();
   }
   else
   {
     Blynk.virtualWrite(V0, HIGH);
-    Serial.println("SET Light => ON");
+    Serial.println("Relay: ON");
+    RelayStatus = Relay_ON;
+    turnON();
   }
   Serial.println("");
 }
@@ -76,11 +110,19 @@ void toggleLight()
 // Button event (Attach to V0) from Blynk App
 BLYNK_WRITE(V0)
 {
-  //int pinValue = param.asInt();
-  Serial.print("[APP Event] : ");
-  
-  LightStatus ^= 1;
-  toggleLight();
+  int pinValue = param.asInt();
+  if(pinValue == 1)
+  {
+     Serial.println("[APP Event] Set Relay: ON");
+     RelayStatus = Relay_ON;
+     turnON();
+  }
+  else
+  {
+     Serial.println("[APP Event] Set Relay: OFF");
+     RelayStatus = Relay_OFF;
+     turnOFF();    
+  }
 }
 
 BlynkTimer timer;
@@ -89,24 +131,29 @@ void myTimerEvent()
     currentSwitchState = digitalRead(Switch_PIN);
     if (currentSwitchState != lastSwitchState)
     {
-      Serial.print("[Manual Event] : ");
-      Serial.print(lastSwitchState);
-      Serial.print(" to ");
-      Serial.println(currentSwitchState);
+      if (currentSwitchState == Switch_ON)
+      {
+         Serial.println("[Manual Event] : Switch is ON");
+         RelayStatus = Relay_ON;
+         turnON();
+      }
+      else
+      {
+         Serial.println("[Manual Event] : Switch is OFF");
+         RelayStatus = Relay_OFF;
+         turnOFF();
+      }
       
       lastSwitchState = currentSwitchState;
-
-      LightStatus ^= 1;
-      toggleLight();
     }
 }
 
 void setup()
 {
+  Serial.println("!!! Board Reset !!!");
   pinMode(RelayA_PIN, OUTPUT);
   pinMode(RelayC_PIN, OUTPUT);
-  digitalWrite(RelayA_PIN, HIGH);
-  digitalWrite(RelayC_PIN, LOW);
+
   
   // Debug console
   Serial.begin(115200);
@@ -115,17 +162,54 @@ void setup()
 
   pinMode(LED1_PIN, OUTPUT);
   pinMode(LED2_PIN, OUTPUT);
-  pinMode(LED3_PIN, OUTPUT);
-  digitalWrite(LED1_PIN, HIGH);
-  digitalWrite(LED2_PIN, HIGH);
-  digitalWrite(LED3_PIN, HIGH);
+  //pinMode(LED3_PIN, OUTPUT);
+  
+  //digitalWrite(LED1_PIN, HIGH);
+  //digitalWrite(LED2_PIN, HIGH);
+  //digitalWrite(LED3_PIN, HIGH);
 
   pinMode(Switch_PIN, INPUT);
+  currentSwitchState = digitalRead(Switch_PIN);
+  lastSwitchState = currentSwitchState;
+   //= currentSwitchState;
+
+  Serial.println();
+  if(lastSwitchState == Switch_ON)
+  {
+    Serial.println("Init: Switch is at ON");
+    RelayStatus = Relay_ON;
+    turnON();
+  }
+  else
+  {
+    Serial.println("Init: Switch is at OFF");
+    RelayStatus = Relay_OFF;
+    turnOFF();
+  }
 }
 
+
+unsigned int count = 0;
+unsigned char normalState = 0;
 void loop()
 {
   Blynk.run();
-  timer.run(); 
+  timer.run();
+
+  count++;
+  if(count >= 30000)
+  {
+     count = 0;
+     if(normalState == 1)
+     {
+        normalState = 0;
+        digitalWrite(LED1_PIN, LOW);
+     }
+     else
+     {
+        normalState = 1;
+        digitalWrite(LED1_PIN, HIGH);
+     } 
+  }
 }
 
